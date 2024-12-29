@@ -10,11 +10,10 @@ const socket = (io) => {
       //add socket to the specified room
       socket.join(groupId);
 
-      connectedUsers.set(socket.id, { user, room: groupId });
+      connectedUsers.set(socket.id, { room: groupId, user: userData });
       const usersInRoom = Array.from(connectedUsers.values())
         .filter((u) => u.room === groupId)
         .map((u) => u.user);
-
       io.in(groupId).emit("users in room", usersInRoom);
 
       socket.to(groupId).emit("notification", {
@@ -27,16 +26,23 @@ const socket = (io) => {
     //? ---------------
     //!START: Leave room handler
     socket.on("leave room", (groupId) => {
-      console.log(`${user?.username} leaving the room: `, groupId);
-      //remove socket
-      socket.leave(groupId);
+      const userData = connectedUsers.get(socket.id);
+
+      if (!userData) {
+        console.log(`No user data found for socket: ${socket.id}`);
+        return;
+      }
+
+      console.log(`${userData.user.username} is leaving the room: `, groupId);
 
       if (connectedUsers.has(socket.id)) {
-        connectedUsers.delete(socket.id);
+        socket.leave(groupId);
         socket.to(groupId).emit("user left", user?._id);
+        connectedUsers.delete(socket.id);
       }
     });
     //!END: Leave room handler
+
     //? ---------------
     //!START:  New Message handler
     socket.on("new message", (message) => {
