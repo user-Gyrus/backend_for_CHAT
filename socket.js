@@ -7,24 +7,30 @@ const socket = (io) => {
 
     //!START: Join room handler
     socket.on("join room", (groupId) => {
-      //add socket to the specified room
+      // Add socket to the specified room
       socket.join(groupId);
 
-      connectedUsers.set(socket.id, { room: groupId, user: userData });
+      connectedUsers.set(socket.id, { room: groupId, user: user });
+
       const usersInRoom = Array.from(connectedUsers.values())
         .filter((u) => u.room === groupId)
         .map((u) => u.user);
+
       io.in(groupId).emit("users in room", usersInRoom);
+
+      io.in(groupId).emit("room member count", usersInRoom.length);
 
       socket.to(groupId).emit("notification", {
         type: "USER_JOIN",
-        message: `${user && user.username} has joined`,
+        message: `${user?.username} has joined`,
         user: user,
       });
     });
+
     //!END: Join room handler
+
     //? ---------------
-    //!START: Leave room handler
+    //!Start : Leave Room Handler
     socket.on("leave room", (groupId) => {
       const userData = connectedUsers.get(socket.id);
 
@@ -37,8 +43,17 @@ const socket = (io) => {
 
       if (connectedUsers.has(socket.id)) {
         socket.leave(groupId);
-        socket.to(groupId).emit("user left", user?._id);
         connectedUsers.delete(socket.id);
+
+        // Re-calculate users in the room and emit the count
+        const usersInRoom = Array.from(connectedUsers.values())
+          .filter((u) => u.room === groupId)
+          .map((u) => u.user);
+
+        io.in(groupId).emit("users in room", usersInRoom);
+        io.in(groupId).emit("room member count", usersInRoom.length);
+
+        socket.to(groupId).emit("user left", user?._id);
       }
     });
     //!END: Leave room handler
@@ -51,18 +66,28 @@ const socket = (io) => {
     });
     //!END: New Message  handler
     //? ---------------
-    //!START: Disconnected handler
+    //!START: Disconnect handler
     socket.on("disconnect", () => {
-      console.log(`${user?.username} disconnected`);
-      if (connectedUsers.has(socket.id)) {
-        const userData = connectedUsers.get(socket.id);
+      const userData = connectedUsers.get(socket.id);
 
-        socket.to(userData.room).emit("user left", user._id);
-
-        connectedUsers.delete(socket.id);
+      if (!userData) {
+        return;
       }
+
+      const groupId = userData.room;
+      connectedUsers.delete(socket.id);
+
+      // Re-calculate users in the room and emit the count
+      const usersInRoom = Array.from(connectedUsers.values())
+        .filter((u) => u.room === groupId)
+        .map((u) => u.user);
+
+      io.in(groupId).emit("users in room", usersInRoom);
+      io.in(groupId).emit("room member count", usersInRoom.length);
+
+      socket.to(groupId).emit("user left", userData?.user?._id);
     });
-    //!END: Disconnected handler
+    //!END: Disconnect handler
     //? ---------------
     //!START: Typing handler
     socket.on("typing", ({ groupId, username }) => {
@@ -75,6 +100,19 @@ const socket = (io) => {
         .emit("user stopped typing", { username: user?.username });
     });
     //!END: Typing handler
+
+    //!START: Send message handler
+    socket.on("send message", (message) => {
+      // Handle message sending logic here
+      // For instance, save the message to a database, then broadcast it
+
+      // Assuming message contains the groupId and message content
+      console.log(`Message to group ${message.groupId}: ${message.content}`);
+
+      // Broadcast the message to the group (excluding the sender)
+      socket.to(message.groupId).emit("message received", message);
+    });
+    //!END: Send message handler
   });
 };
 
