@@ -29,8 +29,6 @@ app.use(express.json());
 // Connect to the database
 mongoose
   .connect(process.env.MONGO_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true, // Corrected option
     serverSelectionTimeoutMS: 15000,
     connectTimeoutMS: 30000,
   })
