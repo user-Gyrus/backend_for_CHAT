@@ -26,7 +26,12 @@ app.use(cors());
 app.use(express.json());
 //connect to the database
 mongoose
-  .connect(process.env.MONGO_URL)
+  .connect(process.env.MONGO_URL, {
+    useNewUrlParser: true,
+    useUnifiedTsopology: true,
+    serverSelectionTimeoutMS: 15000,
+    connectTimeoutMS: 30000,
+  })
   .then(() => {
     console.log(`Connection Establised with the Database`);
   })
